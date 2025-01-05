@@ -64,6 +64,26 @@ run/live:
 		--build.include_ext "go, tpl, tmpl, html, css, scss, js, ts, sql, jpeg, jpg, gif, png, bmp, svg, webp, ico" \
 		--misc.clean_on_exit "true"
 
+# Create DB container
+.PHONY: docker/run
+docker/run:
+	@if docker compose up 2>/dev/null; then \
+		: ; \
+	else \
+		echo "Falling back to Docker Compose V1"; \
+		docker-compose up; \
+	fi
+
+# Shutdown DB container
+.PHONY: docker/down
+docker/down:
+	@if docker compose down 2>/dev/null; then \
+		: ; \
+	else \
+		echo "Falling back to Docker Compose V1"; \
+		docker-compose down; \
+	fi
+
 
 # ==================================================================================== #
 # SQL MIGRATIONS
@@ -108,3 +128,10 @@ migrations/status:
 .PHONY: sqlc/generate
 sqlc/generate:
 	sqlc generate
+
+## swag/build: generate swagger documentation
+.PHONY: swag/generate
+swag/generate:
+	@echo "Generating Swagger documentation..."
+	@cd ./cmd/api && swag init --parseDependency --parseInternal || { echo "Swagger generation failed"; exit 1; }
+	@echo "Swagger documentation generated successfully."

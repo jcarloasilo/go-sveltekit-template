@@ -1,12 +1,18 @@
 package main
 
 import (
+	"fmt"
+	"go-sveltekit/cmd/api/docs"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func (app *application) routes() http.Handler {
+	docs.SwaggerInfo.Host = app.config.swagger.host
+	docs.SwaggerInfo.Schemes = []string{app.config.swagger.scheme}
+
 	mux := chi.NewRouter()
 
 	mux.NotFound(app.notFound)
@@ -31,6 +37,10 @@ func (app *application) routes() http.Handler {
 
 		mux.Get("/basic-auth-protected", app.protected)
 	})
+
+	mux.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(fmt.Sprintf("%s://%s/swagger/doc.json", app.config.swagger.scheme, app.config.swagger.host)),
+	))
 
 	return mux
 }

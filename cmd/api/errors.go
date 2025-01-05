@@ -11,6 +11,10 @@ import (
 	"go-sveltekit/internal/validator"
 )
 
+type ErrorMessage struct {
+	Message string `json:"error"`
+}
+
 func (app *application) reportServerError(r *http.Request, err error) {
 	var (
 		message = err.Error()

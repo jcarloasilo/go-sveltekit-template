@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"go-sveltekit/internal/response"
 	"go-sveltekit/internal/validator"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pascaldekloe/jwt"
 )
 
@@ -25,6 +27,17 @@ func (app *application) status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// createUser godoc
+// @Summary Create a new user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body database.CreateUserParams true "User credentials"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorMessage
+// @Failure 422 {object} validator.Validator
+// @Failure 500 {object} ErrorMessage
+// @Router /users [post]
 func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email     string              `json:"Email"`
@@ -39,19 +52,15 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = app.db.GetUserByEmail(r.Context(), input.Email)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			input.Validator.CheckField(false, "Email", "Email is already in use")
-
-		default:
-			app.serverError(w, r, err)
-			return
-		}
+	notExist := errors.Is(err, pgx.ErrNoRows)
+	if err != nil && !notExist {
+		app.serverError(w, r, err)
+		return
 	}
 
 	input.Validator.CheckField(input.Email != "", "Email", "Email is required")
 	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "Email", "Must be a valid email address")
+	input.Validator.CheckField(notExist, "Email", "Email is already in use")
 
 	input.Validator.CheckField(input.Password != "", "Password", "Password is required")
 	input.Validator.CheckField(len(input.Password) >= 8, "Password", "Password is too short")

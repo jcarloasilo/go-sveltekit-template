@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"runtime/debug"
 	"sync"
 
+	_ "go-sveltekit/cmd/api/docs"
 	"go-sveltekit/internal/database"
 	"go-sveltekit/internal/env"
 	"go-sveltekit/internal/smtp"
@@ -15,8 +17,30 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lmittmann/tint"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
+// @title           API Title
+// @version         1.0
+// @description     This API is going to provide all infos for the API
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   John Carlo Asilo
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      ${HOST}
+// @BasePath  /
+// @schemes   ${SCHEMES}
+
+// @securityDefinitions.basic  BasicAuth
+
+// @externalDocs.description  OpenAPI
+// @externalDocs.url          https://swagger.io/resources/open-api/
 func main() {
 	logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{Level: slog.LevelDebug}))
 
@@ -56,6 +80,10 @@ type config struct {
 		password string
 		from     string
 	}
+	swagger struct {
+		scheme string
+		host   string
+	}
 }
 
 type application struct {
@@ -76,6 +104,7 @@ func run(logger *slog.Logger) error {
 	cfg.basicAuth.username = env.GetString("BASIC_AUTH_USERNAME", "admin")
 	cfg.basicAuth.hashedPassword = env.GetString("BASIC_AUTH_HASHED_PASSWORD", "$2a$10$jRb2qniNcoCyQM23T59RfeEQUbgdAXfR6S0scynmKfJa5Gj3arGJa")
 	cfg.cookie.secretKey = env.GetString("COOKIE_SECRET_KEY", "daapb3ukst43vpjsxf67ehomnlulacr3")
+	cfg.jwt.secretKey = env.GetString("JWT_SECRET_KEY", "2sbhpt3ckvj5i5urt727fmeugwud7i3r")
 
 	cfg.db.database = env.GetString("DB_DATABASE", "db")
 	cfg.db.password = env.GetString("DB_PASSWORD", "pass")
@@ -84,13 +113,14 @@ func run(logger *slog.Logger) error {
 	cfg.db.host = env.GetString("DB_HOST", "localhost")
 	cfg.db.schema = env.GetString("DB_SCHEMA", "public")
 
-	cfg.jwt.secretKey = env.GetString("JWT_SECRET_KEY", "2sbhpt3ckvj5i5urt727fmeugwud7i3r")
-
 	cfg.smtp.host = env.GetString("SMTP_HOST", "example.smtp.host")
 	cfg.smtp.port = env.GetInt("SMTP_PORT", 25)
 	cfg.smtp.username = env.GetString("SMTP_USERNAME", "example_username")
 	cfg.smtp.password = env.GetString("SMTP_PASSWORD", "pa55word")
 	cfg.smtp.from = env.GetString("SMTP_FROM", "Example Name <no_reply@example.org>")
+
+	cfg.swagger.scheme = env.GetString("SWAGGER_SCHEME", "http")
+	cfg.swagger.host = env.GetString("SWAGGER_HOST", "localhost:8080")
 
 	showVersion := flag.Bool("version", false, "display version and exit")
 
@@ -106,6 +136,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	log.Println("database connection pool established")
 	defer dbPool.Close()
 
 	db := database.New(dbPool)
@@ -114,6 +145,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	log.Println("mailer connection established")
 
 	app := &application{
 		config: cfg,
