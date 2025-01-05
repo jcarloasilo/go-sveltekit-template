@@ -1,10 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
-	"strconv"
 	"time"
 
+	"go-sveltekit/internal/database"
 	"go-sveltekit/internal/password"
 	"go-sveltekit/internal/request"
 	"go-sveltekit/internal/response"
@@ -37,15 +38,20 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, found, err := app.db.GetUserByEmail(input.Email)
+	_, err = app.db.GetUserByEmail(r.Context(), input.Email)
 	if err != nil {
-		app.serverError(w, r, err)
-		return
+		switch err {
+		case sql.ErrNoRows:
+			input.Validator.CheckField(false, "Email", "Email is already in use")
+
+		default:
+			app.serverError(w, r, err)
+			return
+		}
 	}
 
 	input.Validator.CheckField(input.Email != "", "Email", "Email is required")
 	input.Validator.CheckField(validator.Matches(input.Email, validator.RgxEmail), "Email", "Must be a valid email address")
-	input.Validator.CheckField(!found, "Email", "Email is already in use")
 
 	input.Validator.CheckField(input.Password != "", "Password", "Password is required")
 	input.Validator.CheckField(len(input.Password) >= 8, "Password", "Password is too short")
@@ -63,7 +69,11 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.db.InsertUser(input.Email, hashedPassword)
+	_, err = app.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email:    input.Email,
+		Password: hashedPassword,
+	})
+
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -85,25 +95,27 @@ func (app *application) createAuthenticationToken(w http.ResponseWriter, r *http
 		return
 	}
 
-	user, found, err := app.db.GetUserByEmail(input.Email)
+	user, err := app.db.GetUserByEmail(r.Context(), input.Email)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			input.Validator.CheckField(false, "Email", "Email address could not be found")
+		default:
+			app.serverError(w, r, err)
+			return
+		}
+	}
+
+	input.Validator.CheckField(input.Email != "", "Email", "Email is required")
+
+	passwordMatches, err := password.Matches(input.Password, user.Password)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	input.Validator.CheckField(input.Email != "", "Email", "Email is required")
-	input.Validator.CheckField(found, "Email", "Email address could not be found")
-
-	if found {
-		passwordMatches, err := password.Matches(input.Password, user.HashedPassword)
-		if err != nil {
-			app.serverError(w, r, err)
-			return
-		}
-
-		input.Validator.CheckField(input.Password != "", "Password", "Password is required")
-		input.Validator.CheckField(passwordMatches, "Password", "Password is incorrect")
-	}
+	input.Validator.CheckField(input.Password != "", "Password", "Password is required")
+	input.Validator.CheckField(passwordMatches, "Password", "Password is incorrect")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
@@ -111,7 +123,7 @@ func (app *application) createAuthenticationToken(w http.ResponseWriter, r *http
 	}
 
 	var claims jwt.Claims
-	claims.Subject = strconv.Itoa(user.ID)
+	claims.Subject = user.ID.String()
 
 	expiry := time.Now().Add(24 * time.Hour)
 	claims.Issued = jwt.NewNumericTime(time.Now())

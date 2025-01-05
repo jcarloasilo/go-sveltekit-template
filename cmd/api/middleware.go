@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"go-sveltekit/internal/response"
 
+	"github.com/google/uuid"
 	"github.com/pascaldekloe/jwt"
 	"github.com/tomasen/realip"
 	"golang.org/x/crypto/bcrypt"
@@ -82,21 +82,19 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 					return
 				}
 
-				userID, err := strconv.Atoi(claims.Subject)
+				userID, err := uuid.Parse(claims.Subject)
 				if err != nil {
 					app.serverError(w, r, err)
 					return
 				}
 
-				user, found, err := app.db.GetUser(userID)
+				user, err := app.db.GetUser(r.Context(), userID)
 				if err != nil {
 					app.serverError(w, r, err)
 					return
 				}
 
-				if found {
-					r = contextSetAuthenticatedUser(r, user)
-				}
+				r = contextSetAuthenticatedUser(r, &user)
 			}
 		}
 

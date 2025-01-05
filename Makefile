@@ -103,3 +103,8 @@ migrations/down-by-one:
 .PHONY: migrations/status
 migrations/status:
 	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} status
+
+## sqlc/generate: generate sqlc files
+.PHONY: sqlc/generate
+sqlc/generate:
+	sqlc generate
