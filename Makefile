@@ -2,6 +2,7 @@
 # HELPERS
 # ==================================================================================== #
 
+include .env
 ## help: print this help message
 .PHONY: help
 help:
@@ -68,33 +69,37 @@ run/live:
 # SQL MIGRATIONS
 # ==================================================================================== #
 
-## migrations/new name=$1: create a new database migration
-.PHONY: migrations/new
-migrations/new:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest create -seq -ext=.sql -dir=./assets/migrations ${name}
-
 ## migrations/up: apply all up database migrations
 .PHONY: migrations/up
 migrations/up:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path=./assets/migrations -database="postgres://${DB_DSN}" up
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} up
+
+## migrations/up-to version=$1: migrate up to a specific version number
+.PHONY: migrations/up-to
+migrations/up-to:
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} up-to ${version}
+
+## migrations/up-by-one: migrate up by one version
+.PHONY: migrations/up-by-one
+migrations/up-by-one:
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} up-by-one
 
 ## migrations/down: apply all down database migrations
 .PHONY: migrations/down
 migrations/down:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path=./assets/migrations -database="postgres://${DB_DSN}" down
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} down-to 0
 
-## migrations/goto version=$1: migrate to a specific version number
-.PHONY: migrations/goto
-migrations/goto:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path=./assets/migrations -database="postgres://${DB_DSN}" goto ${version}
+## migrations/down-to version=$1: migrate down to a specific version number
+.PHONY: migrations/down-to
+migrations/down-to:
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} down-to ${version}
 
-## migrations/force version=$1: force database migration
-.PHONY: migrations/force
-migrations/force:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path=./assets/migrations -database="postgres://${DB_DSN}" force ${version}
+## migrations/down-by-one: migrate down by one version
+.PHONY: migrations/down-by-one
+migrations/down-by-one:
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} down
 
-## migrations/version: print the current in-use migration version
-.PHONY: migrations/version
-migrations/version:
-	go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -path=./assets/migrations -database="postgres://${DB_DSN}" version
-
+## migrations/status: show the status of the migrations
+.PHONY: migrations/status
+migrations/status:
+	@cd sql/schemas && goose postgres postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE} status

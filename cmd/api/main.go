@@ -64,8 +64,8 @@ type application struct {
 func run(logger *slog.Logger) error {
 	var cfg config
 
-	cfg.baseURL = env.GetString("BASE_URL", "http://localhost:4444")
-	cfg.httpPort = env.GetInt("HTTP_PORT", 4444)
+	cfg.baseURL = env.GetString("BASE_URL", "http://localhost:8080")
+	cfg.httpPort = env.GetInt("HTTP_PORT", 8080)
 	cfg.basicAuth.username = env.GetString("BASIC_AUTH_USERNAME", "admin")
 	cfg.basicAuth.hashedPassword = env.GetString("BASIC_AUTH_HASHED_PASSWORD", "$2a$10$jRb2qniNcoCyQM23T59RfeEQUbgdAXfR6S0scynmKfJa5Gj3arGJa")
 	cfg.cookie.secretKey = env.GetString("COOKIE_SECRET_KEY", "daapb3ukst43vpjsxf67ehomnlulacr3")
