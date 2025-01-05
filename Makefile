@@ -53,7 +53,8 @@ build:
 ## run: run the cmd/api application
 .PHONY: run
 run: build
-	/tmp/bin/api
+	/tmp/bin/api &
+	cd frontend && pnpm dev
 
 ## run/live: run the application with reloading on file changes
 .PHONY: run/live
@@ -62,7 +63,8 @@ run/live:
 		--build.cmd "make build" --build.bin "/tmp/bin/api" --build.delay "100" \
 		--build.exclude_dir "" \
 		--build.include_ext "go, tpl, tmpl, html, css, scss, js, ts, sql, jpeg, jpg, gif, png, bmp, svg, webp, ico" \
-		--misc.clean_on_exit "true"
+		--misc.clean_on_exit "true" &
+	cd frontend && pnpm dev
 
 # Create DB container
 .PHONY: docker/run
@@ -83,7 +85,6 @@ docker/down:
 		echo "Falling back to Docker Compose V1"; \
 		docker-compose down; \
 	fi
-
 
 # ==================================================================================== #
 # SQL MIGRATIONS
